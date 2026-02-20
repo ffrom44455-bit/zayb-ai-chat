@@ -5,74 +5,61 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zayb AI Chat</title>
     <style>
-        body { font-family: Arial, sans-serif; }
-        #chat { border: 1px solid #ccc; padding: 10px; height: 400px; overflow-y: scroll; }
-        #loading { display: none; color: blue; }
-        #error { color: red; }
-        #send { background-color: #28a745; color: white; border: none; cursor: pointer; }
-        #send:disabled { background-color: #ccc; }
+        /* Add necessary styles here */
     </style>
 </head>
 <body>
-    <h1>Welcome to Zayb AI Chat</h1>
-    <div id="chat"></div>
-    <div id="loading">Loading...</div>
-    <div id="error"></div>
-    <input type="text" id="userInput" placeholder="Type your message here..." />
-    <button id="send" disabled>Send</button>
+    <div id="chat-container">
+        <div id="messages"></div>
+        <textarea id="user-input" placeholder="Type your message here..."></textarea>
+        <div id="loading" style="display:none;">Loading...</div>
+    </div>
 
     <script>
-        const API_KEY = 'YOUR_API_KEY'; // Replace with your OpenRouter API key
-        const chatDiv = document.getElementById('chat');
+        const userInput = document.getElementById('user-input');
+        const messages = document.getElementById('messages');
         const loadingDiv = document.getElementById('loading');
-        const errorDiv = document.getElementById('error');
-        const sendButton = document.getElementById('send');
-        const userInput = document.getElementById('userInput');
 
-        userInput.addEventListener('input', () => {
-            sendButton.disabled = !userInput.value || userInput.value.trim() === '' || !API_KEY;
-        });
+        // Function to send message
+        function sendMessage(message) {
+            if (!message.trim()) return;
 
-        userInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !sendButton.disabled) {
-                sendMessage();
-            }
-        });
-
-        sendButton.addEventListener('click', sendMessage);
-
-        function sendMessage() {
-            const message = userInput.value;
+            messages.innerHTML += `<div class=\"user-message\">${message}</div>`;
             userInput.value = '';
-            userInput.focus();
             loadingDiv.style.display = 'block';
-            errorDiv.innerText = '';
 
-            fetch('https://api.openrouter.ai/send', {
+            // Simulating API call with OpenRouter integration
+            fetch('https://api.openrouter.ai/your-api-endpoint', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${API_KEY}`
+                    'Authorization': 'Bearer your-api-key',
                 },
                 body: JSON.stringify({ prompt: message })
             })
-            .then(response => {
-                loadingDiv.style.display = 'none';
-                if (!response.ok) {
-                    throw new Error('Network response was not ok ' + response.statusText);
-                }
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
-                chatDiv.innerHTML += `<p><strong>You:</strong> ${message}</p>`;
-                chatDiv.innerHTML += `<p><strong>Zayb AI:</strong> ${data.response}</p>`;
-                chatDiv.scrollTop = chatDiv.scrollHeight;
+                loadingDiv.style.display = 'none';
+                messages.innerHTML += `<div class=\"ai-message\">${data.response}</div>`;
             })
             .catch(error => {
                 loadingDiv.style.display = 'none';
-                errorDiv.innerText = 'Error: ' + error.message;
+                console.error('Error:', error);
+                messages.innerHTML += `<div class=\"error-message\">Error: ${error.message}</div>`;
             });
         }
+
+        // Keyboard events
+        userInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                if (event.shiftKey) {
+                    // Allow newline
+                    return;
+                }
+                event.preventDefault(); // Prevent default newline
+                sendMessage(userInput.value);
+            }
+        });
     </script>
 </body>
 </html>
