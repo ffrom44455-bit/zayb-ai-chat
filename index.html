@@ -1,220 +1,455 @@
-<!DOCTYPE html>
-<html lang="en" class="dark">
+<!doctype html>
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Zayb AI</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        ::-webkit-scrollbar { display: none; }
-        * { -ms-overflow-style: none; scrollbar-width: none; -webkit-tap-highlight-color: transparent; outline: none !important; }
-        body { background-color: #0d0d0d; color: #ececec; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-        .chat-pill { background-color: #2f2f2f; border-radius: 9999px; }
-        .drawer-blur { backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); background: rgba(0,0,0,0.8); }
-        @keyframes messageAppear { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-        .msg-anim { animation: messageAppear 0.3s ease-out forwards; }
-        textarea { font-size: 16px !important; line-height: 1.5; }
-        .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Zayb AI — Universal Chat (Static)</title>
+  <meta name="description" content="Universal AI Chat Interface (static single-file) — Zayb AI" />
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* small helpers */
+    .scrollbar-thin::-webkit-scrollbar { height: 8px; width: 8px; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(100,116,139,.4); border-radius: 8px; }
+    /* message bubble max-widths */
+    .msg-user { align-self: flex-end; }
+    .msg-assistant { align-self: flex-start; }
+    [contenteditable]:focus { outline: none; }
+    /* simple markdown-like code styling */
+    pre { background: rgba(15,23,42,.6); padding: .5rem; border-radius: .5rem; overflow:auto; }
+  </style>
 </head>
-<body class="h-screen flex flex-col overflow-hidden">
+<body class="bg-slate-50 text-slate-800 min-h-screen">
 
-    <header class="h-14 flex items-center justify-between px-4 shrink-0 z-30">
-        <button onclick="toggleDrawer()" class="p-2 hover:bg-white/10 rounded-full transition-all">
-            <i data-lucide="menu" class="w-6 h-6 text-zinc-400"></i>
-        </button>
-        <div class="flex items-center gap-1 bg-white/5 px-3 py-1.5 rounded-full border border-white/10" onclick="toggleSettings(true)">
-            <span class="text-[13px] font-medium text-zinc-300" id="header-model-name">Zayb AI</span>
-            <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-zinc-500"></i>
+  <div class="min-h-screen flex">
+    <!-- Sidebar -->
+    <aside class="w-80 bg-white border-r border-slate-200 flex flex-col">
+      <div class="px-4 py-4 flex items-center gap-3">
+        <div class="w-10 h-10 bg-gradient-to-br from-purple-600 to-indigo-500 rounded-lg flex items-center justify-center text-white font-bold">Z</div>
+        <div>
+          <h1 class="text-lg font-semibold">Zayb AI</h1>
+          <p class="text-xs text-slate-500">Universal AI Chat (static)</p>
         </div>
-        <button onclick="createNewChat()" class="p-2 hover:bg-white/10 rounded-full">
-            <i data-lucide="square-pen" class="w-5 h-5 text-zinc-400"></i>
-        </button>
-    </header>
+      </div>
 
-    <main class="flex-1 overflow-y-auto px-4 pt-4 pb-32 space-y-6" id="chat-container">
-        <div id="welcome-screen" class="h-full flex flex-col items-center justify-center text-center opacity-80">
-            <div class="w-12 h-12 bg-white/5 border border-white/10 rounded-full flex items-center justify-center mb-4">
-                <i data-lucide="sparkles" class="w-6 h-6 text-white"></i>
-            </div>
-            <h2 class="text-xl font-semibold mb-1">Zayb AI</h2>
-            <p class="text-zinc-500 text-sm">How can I help you today?</p>
-        </div>
-    </main>
+      <div class="px-4 pb-4">
+        <button id="newChatBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded">+ New Chat</button>
+      </div>
 
-    <div class="fixed bottom-0 left-0 w-full px-4 pb-4 safe-bottom bg-gradient-to-t from-[#0d0d0d] via-[#0d0d0d] to-transparent">
-        <div class="max-w-3xl mx-auto">
-            <div class="chat-pill flex items-end p-1.5 shadow-2xl border border-white/5">
-                <button class="p-2.5 text-zinc-400 hover:text-white" onclick="toggleSettings(true)">
-                    <i data-lucide="settings" class="w-5 h-5"></i>
-                </button>
-                <textarea id="user-input" rows="1" placeholder="Message Zayb..." 
-                    class="flex-1 bg-transparent border-none focus:ring-0 resize-none py-2.5 px-2 text-white placeholder-zinc-500 max-h-40"
-                    oninput="this.style.height='';this.style.height=this.scrollHeight+'px'"></textarea>
-                <button id="send-btn" onclick="handleSendMessage()" 
-                    class="bg-white text-black p-2.5 rounded-full shadow-lg active:scale-90 transition-transform">
-                    <i data-lucide="arrow-up" class="w-5 h-5 stroke-[3]"></i>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <div id="drawer-overlay" onclick="toggleDrawer()" class="fixed inset-0 bg-black/60 z-40 hidden"></div>
-    <aside id="drawer" class="fixed inset-y-0 left-0 w-[80%] max-w-[300px] bg-[#171717] z-50 transform -translate-x-full flex flex-col border-r border-white/5 transition-transform duration-300">
-        <div class="p-4 flex flex-col h-full">
-            <button onclick="createNewChat()" class="flex items-center gap-3 w-full p-3 hover:bg-white/5 rounded-xl transition-all mb-6 border border-white/5">
-                <i data-lucide="plus" class="w-4 h-4 text-white"></i>
-                <span class="font-medium text-sm">New Chat</span>
+      <div class="px-3 pb-2">
+        <div class="flex items-center justify-between text-xs text-slate-500 px-1">
+          <span>Chats</span>
+          <div class="flex gap-2">
+            <button id="settingsBtn" class="p-1 hover:bg-slate-100 rounded" title="Settings">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3" /></svg>
             </button>
-            <div class="flex-1 overflow-y-auto space-y-1" id="chat-history"></div>
-            <div class="pt-4 mt-auto border-t border-white/5 text-center">
-                <p class="text-[9px] uppercase tracking-widest text-zinc-600 font-bold">Architected by Zayb</p>
-            </div>
+            <button id="clearAllBtn" class="p-1 hover:bg-slate-100 rounded" title="Clear all chats">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5-4h4a1 1 0 011 1v1H9V4a1 1 0 011-1z" /></svg>
+            </button>
+          </div>
         </div>
+      </div>
+
+      <div id="chatList" class="flex-1 overflow-auto px-2 scrollbar-thin">
+        <!-- dynamic chat items -->
+      </div>
+
+      <div class="px-4 py-3 border-t border-slate-100 text-xs text-slate-500">
+        <div>Model: <span id="footerModelName" class="font-medium">—</span></div>
+        <div class="mt-1">Status: <span id="apiStatus" class="font-medium text-amber-600">Not configured</span></div>
+      </div>
     </aside>
 
-    <div id="settings-modal" class="fixed inset-0 z-[60] hidden flex items-center justify-center p-6 drawer-blur">
-        <div class="bg-[#212121] w-full max-w-sm rounded-[2rem] p-8 space-y-6 shadow-2xl border border-white/5">
-            <div class="flex justify-between items-center">
-                <h3 class="text-lg font-bold">Settings</h3>
-                <button onclick="toggleSettings(false)" class="text-zinc-500"><i data-lucide="x"></i></button>
-            </div>
-            <div class="space-y-4">
-                <input type="password" id="api-key" placeholder="OpenRouter API Key" class="w-full bg-[#0d0d0d] border border-white/10 rounded-2xl px-5 py-4 text-sm text-white">
-                <input type="text" id="model-name" placeholder="google/gemini-2.0-flash-exp:free" class="w-full bg-[#0d0d0d] border border-white/10 rounded-2xl px-5 py-4 text-sm text-white">
-            </div>
-            <button onclick="saveSettings()" class="w-full bg-white text-black py-4 rounded-full font-bold active:scale-95 transition-all">Save Changes</button>
+    <!-- Main chat area -->
+    <main class="flex-1 flex flex-col">
+      <!-- Header -->
+      <header class="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-white to-slate-50">
+        <div>
+          <div class="text-sm text-slate-500">AI</div>
+          <div class="text-xl font-semibold flex items-center gap-3">
+            <span>Zayb AI</span>
+            <span id="activeChatTitle" class="text-slate-400 text-sm font-normal">(no chat)</span>
+          </div>
         </div>
+
+        <div class="flex items-center gap-3">
+          <button id="renameChatBtn" class="px-3 py-1.5 bg-slate-100 rounded text-sm text-slate-700 hidden">Rename</button>
+          <button id="deleteChatBtn" class="px-3 py-1.5 bg-rose-50 text-rose-700 rounded text-sm hidden">Delete</button>
+          <button id="openSettingsHeaderBtn" class="px-3 py-1.5 bg-slate-100 rounded text-sm">Settings</button>
+        </div>
+      </header>
+
+      <!-- Messages -->
+      <section class="flex-1 overflow-auto p-6" id="messagesContainer" style="display:flex; flex-direction:column; gap:.75rem;">
+        <!-- message bubbles go here -->
+        <div id="emptyState" class="mx-auto mt-8 text-center text-slate-400">
+          <div class="text-2xl font-semibold">Start a conversation</div>
+          <div class="mt-2 text-sm">Click "New Chat" or select a previous chat from the left.</div>
+        </div>
+      </section>
+
+      <!-- Composer -->
+      <footer class="px-6 py-4 border-t border-slate-200 bg-white">
+        <div class="max-w-5xl mx-auto flex gap-3">
+          <div class="flex-1">
+            <div id="inputBox" class="min-h-[56px] max-h-36 overflow-auto bg-slate-50 p-3 rounded-lg border border-slate-100" contenteditable="true" role="textbox" aria-multiline="true" spellcheck="true" placeholder="Ask Zayb AI something..."></div>
+            <div class="mt-2 text-xs text-slate-400 flex items-center justify-between">
+              <div><span id="charCount">0</span> chars</div>
+              <div class="flex gap-2">
+                <button id="btnInsertSample" class="px-2 py-1 text-xs bg-slate-100 rounded">Insert sample</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="w-40 flex flex-col justify-between">
+            <button id="sendBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded">Send</button>
+            <button id="stopBtn" class="w-full mt-2 bg-amber-50 text-amber-700 py-2 rounded hidden">Stop</button>
+          </div>
+        </div>
+      </footer>
+    </main>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settingsModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
+    <div class="w-full max-w-2xl bg-white rounded-lg shadow-lg overflow-hidden">
+      <div class="px-6 py-4 border-b">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">Settings</h2>
+          <button id="closeSettings" class="text-slate-500 hover:text-slate-800">Close</button>
+        </div>
+      </div>
+      <div class="px-6 py-4 space-y-4">
+        <div>
+          <label class="block text-xs text-slate-600 mb-1">API Base URL</label>
+          <input id="apiBaseInput" class="w-full border rounded px-3 py-2 text-sm" placeholder="https://api.openrouter.ai/v1" />
+          <p class="text-xs text-slate-400 mt-1">The base URL for your provider (e.g. OpenRouter). Keep trailing path out; the client will call <code>/chat/completions</code>.</p>
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-600 mb-1">API Key</label>
+          <input id="apiKeyInput" class="w-full border rounded px-3 py-2 text-sm" placeholder="sk-..." />
+          <div class="mt-2 flex gap-2">
+            <button id="saveSettingsBtn" class="px-3 py-1 bg-indigo-600 text-white rounded text-sm">Save</button>
+            <button id="clearApiKeyBtn" class="px-3 py-1 bg-rose-50 text-rose-700 rounded text-sm">Clear Key</button>
+            <button id="testConnectionBtn" class="px-3 py-1 bg-slate-100 rounded text-sm">Test</button>
+            <span id="testResult" class="text-sm text-slate-500"></span>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs text-slate-600 mb-1">Model Name</label>
+          <input id="modelInput" class="w-full border rounded px-3 py-2 text-sm" placeholder="e.g., gpt-4o-mini or a custom model" />
+        </div>
+
+        <div class="text-xs text-slate-500">
+          This static client calls your configured endpoint directly from the browser, using the API key you provide. If your provider requires server-side proxying for security or CORS, you should host a tiny server to forward requests. Keep your key safe.
+        </div>
+      </div>
     </div>
+  </div>
 
-    <script>
-        let currentChatId = null;
-        let chats = JSON.parse(localStorage.getItem('zayb_chats_v3')) || [];
-        let config = JSON.parse(localStorage.getItem('zayb_config_v3')) || { apiKey: '', model: 'google/gemini-2.0-flash-exp:free' };
+  <!-- Simple confirm modal for deletion -->
+  <div id="confirmModal" class="fixed inset-0 z-40 hidden items-center justify-center bg-black/30 p-4">
+    <div class="bg-white rounded p-4 w-full max-w-md">
+      <div class="text-lg font-semibold">Confirm</div>
+      <div class="mt-2 text-sm text-slate-600" id="confirmText">Are you sure?</div>
+      <div class="mt-4 flex justify-end gap-2">
+        <button id="confirmCancel" class="px-3 py-1 rounded bg-slate-100">Cancel</button>
+        <button id="confirmOk" class="px-3 py-1 rounded bg-rose-600 text-white">Yes, delete</button>
+      </div>
+    </div>
+  </div>
 
-        function init() {
-            lucide.createIcons();
-            renderChatHistory();
-            document.getElementById('api-key').value = config.apiKey;
-            document.getElementById('model-name').value = config.model;
-            document.getElementById('header-model-name').innerText = config.model.split('/').pop() || "Zayb AI";
-            if(!config.apiKey) toggleSettings(true);
+  <script>
+    // ---------- Storage keys ----------
+    const STORAGE = {
+      CHATS: 'zayb_ai_chats_v1',
+      SETTINGS: 'zayb_ai_settings_v1'
+    };
+
+    // ---------- Default settings ----------
+    const DEFAULT_SETTINGS = {
+      apiBase: 'https://api.openrouter.ai/v1',
+      apiKey: '',
+      model: 'gpt-4o-mini'
+    };
+
+    // ---------- App state ----------
+    let settings = loadSettings();
+    let chats = loadChats();
+    let activeChatId = null;
+    let isWaitingForResponse = false;
+    let currentController = null;
+
+    // ---------- Elements ----------
+    const chatListEl = document.getElementById('chatList');
+    const newChatBtn = document.getElementById('newChatBtn');
+    const clearAllBtn = document.getElementById('clearAllBtn');
+    const settingsBtn = document.getElementById('settingsBtn');
+    const settingsModal = document.getElementById('settingsModal');
+    const closeSettingsBtn = document.getElementById('closeSettings');
+    const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+    const apiKeyInput = document.getElementById('apiKeyInput');
+    const modelInput = document.getElementById('modelInput');
+    const apiBaseInput = document.getElementById('apiBaseInput');
+    const footerModelName = document.getElementById('footerModelName');
+    const apiStatus = document.getElementById('apiStatus');
+    const messagesContainer = document.getElementById('messagesContainer');
+    const emptyState = document.getElementById('emptyState');
+    const inputBox = document.getElementById('inputBox');
+    const sendBtn = document.getElementById('sendBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const charCount = document.getElementById('charCount');
+    const btnInsertSample = document.getElementById('btnInsertSample');
+    const activeChatTitle = document.getElementById('activeChatTitle');
+    const renameChatBtn = document.getElementById('renameChatBtn');
+    const deleteChatBtn = document.getElementById('deleteChatBtn');
+    const openSettingsHeaderBtn = document.getElementById('openSettingsHeaderBtn');
+    const clearApiKeyBtn = document.getElementById('clearApiKeyBtn');
+    const testConnectionBtn = document.getElementById('testConnectionBtn');
+    const testResult = document.getElementById('testResult');
+    const newChatHeaderBtn = document.getElementById('newChatBtn');
+    const settingsHeaderBtn = document.getElementById('settingsBtn');
+    const confirmModal = document.getElementById('confirmModal');
+    const confirmText = document.getElementById('confirmText');
+    const confirmOk = document.getElementById('confirmOk');
+    const confirmCancel = document.getElementById('confirmCancel');
+    const clearAllChatsBtn = document.getElementById('clearAllBtn');
+    const renameBtn = document.getElementById('renameChatBtn');
+    const deleteBtn = document.getElementById('deleteChatBtn');
+
+    // ---------- Initialization ----------
+    function init() {
+      applySettingsToUI();
+      renderChatList();
+      updateFooterStatus();
+      attachEventListeners();
+
+      // select last active chat if exists
+      if (chats.length) {
+        selectChat(chats[0].id);
+      }
+    }
+
+    function attachEventListeners() {
+      newChatBtn.addEventListener('click', () => newChat());
+      newChatHeaderBtn.addEventListener('click', () => newChat());
+      settingsBtn.addEventListener('click', () => openSettings());
+      openSettingsHeaderBtn.addEventListener('click', () => openSettings());
+      closeSettingsBtn.addEventListener('click', () => closeSettings());
+      saveSettingsBtn.addEventListener('click', () => saveSettingsFromUI());
+      clearApiKeyBtn.addEventListener('click', () => { apiKeyInput.value=''; settings.apiKey=''; saveSettings(); applySettingsToUI(); });
+      testConnectionBtn.addEventListener('click', () => testConnection());
+      clearAllChatsBtn.addEventListener('click', () => confirmAction('Clear all chats?', () => { chats=[]; saveChats(); renderChatList(); renderMessages(null); }));
+      sendBtn.addEventListener('click', () => onSend());
+      stopBtn.addEventListener('click', () => onStop());
+      btnInsertSample.addEventListener('click', () => {
+        inputBox.innerText = "Write a short, aggressive PvP taunt in 2 lines.";
+        updateCharCount();
+        inputBox.focus();
+      });
+      inputBox.addEventListener('input', updateCharCount);
+      inputBox.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          onSend();
         }
+      });
+      confirmCancel.addEventListener('click', () => closeConfirm());
+      // rename + delete
+      renameBtn.addEventListener('click', () => renameActiveChat());
+      deleteBtn.addEventListener('click', () => confirmAction('Delete this chat?', () => {
+        if (!activeChatId) return;
+        chats = chats.filter(c => c.id !== activeChatId);
+        saveChats();
+        activeChatId = chats.length ? chats[0].id : null;
+        renderChatList();
+        renderMessages(activeChatId ? getChatById(activeChatId) : null);
+      }));
+    }
 
-        function toggleDrawer() {
-            const d = document.getElementById('drawer');
-            const o = document.getElementById('drawer-overlay');
-            const isOpen = d.classList.contains('translate-x-0');
-            d.classList.toggle('-translate-x-full', isOpen);
-            d.classList.toggle('translate-x-0', !isOpen);
-            o.classList.toggle('hidden', isOpen);
+    // ---------- Confirm Modal ----------
+    function confirmAction(text, okCb) {
+      confirmText.innerText = text;
+      confirmModal.classList.remove('hidden');
+      confirmOk.onclick = () => { okCb(); closeConfirm(); };
+    }
+    function closeConfirm() {
+      confirmModal.classList.add('hidden');
+      confirmOk.onclick = null;
+    }
+
+    // ---------- Settings ----------
+    function loadSettings() {
+      try {
+        const raw = localStorage.getItem(STORAGE.SETTINGS);
+        if (!raw) return {...DEFAULT_SETTINGS};
+        return {...DEFAULT_SETTINGS, ...JSON.parse(raw)};
+      } catch (e) {
+        console.warn('Failed to load settings', e);
+        return {...DEFAULT_SETTINGS};
+      }
+    }
+
+    function saveSettings() {
+      localStorage.setItem(STORAGE.SETTINGS, JSON.stringify(settings));
+      applySettingsToUI();
+      updateFooterStatus();
+    }
+
+    function applySettingsToUI() {
+      apiKeyInput.value = settings.apiKey || '';
+      modelInput.value = settings.model || DEFAULT_SETTINGS.model;
+      apiBaseInput.value = settings.apiBase || DEFAULT_SETTINGS.apiBase;
+      footerModelName.innerText = settings.model || '—';
+      apiStatus.innerText = settings.apiKey ? 'Configured' : 'Not configured';
+      apiStatus.className = settings.apiKey ? 'font-medium text-emerald-600' : 'font-medium text-amber-600';
+    }
+
+    function saveSettingsFromUI() {
+      settings.apiKey = apiKeyInput.value.trim();
+      settings.model = modelInput.value.trim() || DEFAULT_SETTINGS.model;
+      settings.apiBase = (apiBaseInput.value.trim() || DEFAULT_SETTINGS.apiBase).replace(/\/+$/, '');
+      saveSettings();
+      closeSettings();
+      renderChatList();
+    }
+
+    function openSettings() {
+      settingsModal.classList.remove('hidden');
+      apiKeyInput.focus();
+    }
+    function closeSettings() {
+      settingsModal.classList.add('hidden');
+    }
+
+    async function testConnection() {
+      testResult.innerText = 'Testing...';
+      try {
+        if (!settings.apiKey) {
+          testResult.innerText = 'No API key.';
+          return;
         }
-
-        function toggleSettings(show) { document.getElementById('settings-modal').classList.toggle('hidden', !show); }
-
-        function saveSettings() {
-            config.apiKey = document.getElementById('api-key').value.trim();
-            config.model = document.getElementById('model-name').value.trim() || 'google/gemini-2.0-flash-exp:free';
-            localStorage.setItem('zayb_config_v3', JSON.stringify(config));
-            document.getElementById('header-model-name').innerText = config.model.split('/').pop();
-            toggleSettings(false);
+        const url = settings.apiBase.replace(/\/+$/,'') + '/models';
+        // Attempt a GET to /models - if provider supports it and CORS allows, this gives feedback.
+        const resp = await fetch(url, {
+          method: 'GET',
+          headers: { 'Authorization': 'Bearer ' + settings.apiKey }
+        });
+        if (resp.ok) {
+          testResult.innerText = 'OK ✔';
+        } else {
+          testResult.innerText = 'Response: ' + resp.status + ' ' + resp.statusText;
         }
+      } catch (e) {
+        testResult.innerText = 'Error (CORS or network)';
+        console.warn(e);
+      }
+      setTimeout(()=>{ testResult.innerText=''; }, 3500);
+    }
 
-        function createNewChat() {
-            currentChatId = Date.now();
-            chats.unshift({ id: currentChatId, title: 'New Conversation', messages: [] });
-            saveChats(); renderChatHistory(); loadChat(currentChatId);
-            if(document.getElementById('drawer').classList.contains('translate-x-0')) toggleDrawer();
-        }
+    // ---------- Chats storage ----------
+    function loadChats() {
+      try {
+        const raw = localStorage.getItem(STORAGE.CHATS);
+        if (!raw) return [];
+        return JSON.parse(raw);
+      } catch (e) {
+        console.warn('Failed to load chats', e);
+        return [];
+      }
+    }
 
-        function deleteChat(id, event) {
-            event.stopPropagation();
-            chats = chats.filter(c => c.id !== id);
-            if(currentChatId === id) { currentChatId = null; location.reload(); }
-            saveChats(); renderChatHistory();
-        }
+    function saveChats() {
+      localStorage.setItem(STORAGE.CHATS, JSON.stringify(chats));
+      renderChatList();
+    }
 
-        function saveChats() { localStorage.setItem('zayb_chats_v3', JSON.stringify(chats)); }
+    // ---------- Chat utilities ----------
+    function generateId(prefix='c') {
+      return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+    }
 
-        function renderChatHistory() {
-            const container = document.getElementById('chat-history');
-            container.innerHTML = chats.map(chat => `
-                <div onclick="loadChat(${chat.id}); toggleDrawer();" class="group flex items-center justify-between p-3 rounded-xl transition-all ${chat.id === currentChatId ? 'bg-white/10' : 'hover:bg-white/5'}">
-                    <span class="truncate text-sm text-zinc-300 flex-1">${chat.title}</span>
-                    <button onclick="deleteChat(${chat.id}, event)" class="p-1 hover:text-red-400">
-                        <i data-lucide="trash-2" class="w-4 h-4"></i>
-                    </button>
-                </div>
-            `).join('');
-            lucide.createIcons();
-        }
+    function newChat() {
+      const chat = {
+        id: generateId(),
+        title: 'New chat',
+        model: settings.model || DEFAULT_SETTINGS.model,
+        messages: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+      };
+      chats.unshift(chat);
+      saveChats();
+      selectChat(chat.id);
+    }
 
-        function loadChat(id) {
-            currentChatId = id;
-            const chat = chats.find(c => c.id === id);
-            const container = document.getElementById('chat-container');
-            container.innerHTML = '';
-            document.getElementById('welcome-screen').classList.add('hidden');
-            chat.messages.forEach(m => appendMessageUI(m.role, m.content));
-        }
+    function getChatById(id) {
+      return chats.find(c => c.id === id) || null;
+    }
 
-        function appendMessageUI(role, content, isError = false) {
-            const container = document.getElementById('chat-container');
-            const isAi = role === 'assistant';
-            const div = document.createElement('div');
-            div.className = `flex flex-col ${isAi ? 'items-start' : 'items-end'} msg-anim`;
-            div.innerHTML = `
-                <div class="mb-1 px-1"><span class="text-[10px] font-bold uppercase tracking-widest text-zinc-600">${isAi ? 'Zayb AI' : 'You'}</span></div>
-                <div class="${isAi ? 'text-zinc-200' : 'bg-[#2f2f2f] text-white px-4 py-2.5 rounded-[1.25rem]'} ${isError ? 'text-red-400 border border-red-900/50 bg-red-900/10 p-4' : ''} max-w-[90%] whitespace-pre-wrap leading-relaxed text-[15px]">${content}</div>
-            `;
-            container.appendChild(div);
-            container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
-        }
+    function selectChat(id) {
+      activeChatId = id;
+      // move selected chat to top for convenience
+      const idx = chats.findIndex(c => c.id === id);
+      if (idx > 0) {
+        const [c] = chats.splice(idx,1);
+        chats.unshift(c);
+        saveChats();
+      }
+      renderChatList();
+      renderMessages(getChatById(id));
+    }
 
-        async function handleSendMessage() {
-            const input = document.getElementById('user-input');
-            const content = input.value.trim();
-            if (!content || !config.apiKey) return;
+    function renameActiveChat() {
+      if (!activeChatId) return;
+      const chat = getChatById(activeChatId);
+      const newTitle = prompt('Rename chat', chat.title || 'Chat');
+      if (newTitle !== null) {
+        chat.title = newTitle.trim() || chat.title;
+        chat.updatedAt = Date.now();
+        saveChats();
+        renderChatList();
+        renderMessages(chat);
+      }
+    }
 
-            if (!currentChatId) createNewChat();
-            const chat = chats.find(c => c.id === currentChatId);
-            if(chat.messages.length === 0) { chat.title = content.substring(0, 25); renderChatHistory(); }
-            
-            input.value = ''; input.style.height = 'auto';
-            document.getElementById('welcome-screen').classList.add('hidden');
-            
-            appendMessageUI('user', content);
-            chat.messages.push({ role: 'user', content });
+    function renderChatList() {
+      chatListEl.innerHTML = '';
+      if (!chats.length) {
+        chatListEl.innerHTML = '<div class="px-3 py-4 text-sm text-slate-400">No chats yet. Start one!</div>';
+        return;
+      }
+      chats.forEach(chat => {
+        const lastMsg = chat.messages.length ? chat.messages[chat.messages.length-1] : null;
+        const snippet = lastMsg ? (lastMsg.role === 'user' ? 'You: ' : 'Zayb: ') + (lastMsg.content || '').slice(0, 80) : 'Empty';
+        const el = document.createElement('button');
+        el.className = `w-full text-left rounded p-3 mb-2 hover:bg-slate-50 flex items-start gap-3 ${activeChatId === chat.id ? 'bg-slate-50 border border-slate-100 shadow-sm' : ''}`;
+        el.innerHTML = `
+          <div class="w-9 h-9 rounded bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-semibold">${chat.title.charAt(0) || 'C'}</div>
+          <div class="flex-1">
+            <div class="font-medium text-sm">${escapeHtml(chat.title)}</div>
+            <div class="text-xs text-slate-400 mt-0.5">${escapeHtml(snippet)}</div>
+          </div>
+          <div class="text-xs text-slate-400">${new Date(chat.updatedAt).toLocaleString()}</div>
+        `;
+        el.addEventListener('click', () => selectChat(chat.id));
+        chatListEl.appendChild(el);
+      });
+    }
 
-            try {
-                const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-                    method: "POST",
-                    headers: { 
-                        "Authorization": `Bearer ${config.apiKey}`,
-                        "Content-Type": "application/json",
-                        "HTTP-Referer": window.location.href,
-                        "X-Title": "Zayb AI"
-                    },
-                    body: JSON.stringify({ "model": config.model, "messages": chat.messages })
-                });
-
-                const data = await response.json();
-                
-                if (!response.ok || data.error) {
-                    throw new Error(data.error?.message || `HTTP Error ${response.status}`);
-                }
-
-                const aiResponse = data.choices[0].message.content;
-                chat.messages.push({ role: 'assistant', content: aiResponse });
-                appendMessageUI('assistant', aiResponse);
-                saveChats();
-            } catch (error) {
-                appendMessageUI('assistant', `System Error: ${error.message}. Please check your API key and Credits in Settings.`, true);
-            }
-        }
-
-        init();
-    </script>
-</body>
-    </html>
+    // ---------- Messages ----------
+    function renderMessages(chat) {
+      messagesContainer.innerHTML = '';
+      if (!chat) {
+        emptyState.classList.remove('hidden');
+        activeChatTitle.innerText = '(no chat)';
+        renameChatBtn.classList.add('hidden');
+        deleteChatBtn.classList.add('hidden');
+        return;
+      }
+      emptyState.classList.add('hidden');
+      activeChatTitle.innerText = chat.title || '(untitled)';
+      renameChatBtn.classList.remove('hidden');
+    
