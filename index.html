@@ -1,455 +1,409 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="en" class="h-full">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Zayb AI — Universal Chat (Static)</title>
-  <meta name="description" content="Universal AI Chat Interface (static single-file) — Zayb AI" />
-  <!-- Tailwind CDN -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Zayb AI — Universal Chat Interface</title>
+
+  <!-- Tailwind CSS via CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts: Sora (display) + DM Sans (body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet" />
+
+  <!-- Marked.js for Markdown rendering -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <!-- Highlight.js for code syntax highlighting -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+  <!-- Tailwind custom config -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['Sora', 'sans-serif'],
+            body: ['DM Sans', 'sans-serif'],
+          },
+          keyframes: {
+            fadeUp:  { '0%': { opacity:'0', transform:'translateY(14px)' }, '100%': { opacity:'1', transform:'translateY(0)' } },
+            blink:   { '0%,100%': { opacity:'1' }, '50%': { opacity:'0.15' } },
+            scaleIn: { '0%': { opacity:'0', transform:'scale(0.95)' }, '100%': { opacity:'1', transform:'scale(1)' } },
+          },
+          animation: {
+            'fade-up':  'fadeUp 0.4s ease forwards',
+            'blink':    'blink 1.1s step-start infinite',
+            'scale-in': 'scaleIn 0.25s ease forwards',
+          },
+        },
+      },
+    };
+  </script>
+
   <style>
-    /* small helpers */
-    .scrollbar-thin::-webkit-scrollbar { height: 8px; width: 8px; }
-    .scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(100,116,139,.4); border-radius: 8px; }
-    /* message bubble max-widths */
-    .msg-user { align-self: flex-end; }
-    .msg-assistant { align-self: flex-start; }
-    [contenteditable]:focus { outline: none; }
-    /* simple markdown-like code styling */
-    pre { background: rgba(15,23,42,.6); padding: .5rem; border-radius: .5rem; overflow:auto; }
+    /* ── Base Reset ── */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #07090f;
+      color: #dde3ee;
+      overflow: hidden;
+    }
+
+    /* ── Custom Scrollbars ── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #1e2a3a; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #2e3f55; }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      background: linear-gradient(170deg, #0b101a 0%, #080d17 100%);
+      border-right: 1px solid rgba(99,179,237,0.07);
+    }
+
+    /* ── Chat area ambient lighting ── */
+    #chat-area {
+      background:
+        radial-gradient(ellipse 80% 45% at 65% -5%, rgba(56,189,248,0.045) 0%, transparent 65%),
+        radial-gradient(ellipse 55% 55% at 95% 85%, rgba(139,92,246,0.035) 0%, transparent 65%),
+        #07090f;
+    }
+
+    /* ── Markdown Prose Styles ── */
+    .prose-msg h1, .prose-msg h2, .prose-msg h3 {
+      font-family: 'Sora', sans-serif; color: #f0f6ff; font-weight: 600;
+      margin: .6em 0 .3em;
+    }
+    .prose-msg h1 { font-size: 1.25em; }
+    .prose-msg h2 { font-size: 1.1em; }
+    .prose-msg h3 { font-size: 1em; }
+    .prose-msg p  { margin: .4em 0; line-height: 1.75; }
+    .prose-msg ul, .prose-msg ol { padding-left: 1.4em; margin: .4em 0; }
+    .prose-msg li { margin: .2em 0; line-height: 1.65; }
+    .prose-msg strong { color: #93c5fd; font-weight: 600; }
+    .prose-msg em { color: #c4b5fd; }
+    .prose-msg code:not(pre code) {
+      background: #1a2235; color: #7dd3fc; padding: .15em .4em;
+      border-radius: .3em; font-size: .84em; font-family: 'Courier New', monospace;
+    }
+    .prose-msg pre {
+      background: #0d1626; border: 1px solid #1e2d42;
+      border-radius: .65em; overflow-x: auto; margin: .65em 0; position: relative;
+    }
+    .prose-msg pre code {
+      background: transparent; color: inherit; padding: .85em 1em;
+      display: block; font-size: .82em;
+    }
+    .prose-msg a { color: #38bdf8; text-decoration: underline; }
+    .prose-msg blockquote {
+      border-left: 3px solid #38bdf8; padding-left: .9em;
+      color: #94a3b8; font-style: italic; margin: .5em 0;
+    }
+    .prose-msg table { border-collapse: collapse; width: 100%; margin: .5em 0; font-size: .88em; }
+    .prose-msg th { background: #111c2e; color: #93c5fd; padding: .4em .8em; border: 1px solid #1e2d42; text-align: left; }
+    .prose-msg td { padding: .35em .8em; border: 1px solid #1a2638; }
+    .prose-msg tr:nth-child(even) td { background: #0d1626; }
+
+    /* ── Copy button on code blocks ── */
+    .copy-btn {
+      position: absolute; top: .55em; right: .55em;
+      background: #1e2d42; border: 1px solid #2e3f55;
+      color: #94a3b8; font-size: .68em; padding: .22em .6em;
+      border-radius: .3em; cursor: pointer; opacity: 0; transition: opacity .2s;
+      font-family: 'DM Sans', sans-serif;
+    }
+    .prose-msg pre:hover .copy-btn { opacity: 1; }
+    .copy-btn:hover { background: #2e3f55; color: #e2e8f0; }
+
+    /* ── Textarea ── */
+    #user-input { resize: none; max-height: 200px; overflow-y: auto; }
+    #user-input:focus { outline: none; }
+
+    /* ── Input box focus glow ── */
+    #input-box:focus-within {
+      box-shadow: 0 0 0 1.5px rgba(56,189,248,0.3), 0 6px 28px rgba(0,0,0,0.5);
+      border-color: rgba(56,189,248,0.2) !important;
+    }
+
+    /* ── Typing indicator dots ── */
+    .typing-dot {
+      display: inline-block; width: 7px; height: 7px;
+      border-radius: 50%; background: #38bdf8;
+      animation: blink 1.1s step-start infinite;
+    }
+    .typing-dot:nth-child(2) { animation-delay: .25s; }
+    .typing-dot:nth-child(3) { animation-delay: .5s; }
+
+    /* ── Sidebar chat items ── */
+    .chat-item {
+      cursor: pointer; border-radius: .5em;
+      padding: .45em .7em; font-size: .8em; color: #6a7f96;
+      transition: background .15s, color .15s;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      display: flex; align-items: center; gap: .5em;
+    }
+    .chat-item:hover { background: #0f1c2e; color: #dde3ee; }
+    .chat-item.active { background: #0f1f36; color: #e2ecff; }
+    .chat-item .del-btn {
+      margin-left: auto; opacity: 0; color: #ef4444;
+      font-size: .85em; padding: .1em .35em; border-radius: .3em;
+      flex-shrink: 0; transition: opacity .15s; line-height: 1;
+    }
+    .chat-item:hover .del-btn { opacity: 1; }
+
+    /* ── Logo glow ── */
+    .logo-glow { text-shadow: 0 0 20px rgba(56,189,248,0.4), 0 0 45px rgba(56,189,248,0.12); }
+
+    /* ── Modal overlay ── */
+    #modal-overlay { backdrop-filter: blur(5px); }
+
+    /* ── Suggestion cards ── */
+    .suggestion-card {
+      background: #0d1626; border: 1px solid #1a2638;
+      border-radius: .75em; padding: .8em 1em; cursor: pointer;
+      font-size: .82em; color: #7889a0; transition: all .2s; line-height: 1.5;
+    }
+    .suggestion-card:hover {
+      background: #111e30; border-color: rgba(56,189,248,0.25);
+      color: #dde3ee; transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    }
+
+    /* ── Send button pulse on hover ── */
+    @keyframes sendGlow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(56,189,248,0.4); }
+      50%       { box-shadow: 0 0 0 7px rgba(56,189,248,0); }
+    }
+    #send-btn:not(:disabled):hover { animation: sendGlow .55s ease; }
+
+    /* ── Toast notification ── */
+    #toast { transition: opacity .3s ease; }
+
+    /* ── Settings input focus ── */
+    .settings-input:focus {
+      border-color: rgba(56,189,248,0.4) !important;
+      box-shadow: 0 0 0 3px rgba(56,189,248,0.08);
+      outline: none;
+    }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen">
+<body class="flex h-full overflow-hidden">
 
-  <div class="min-h-screen flex">
-    <!-- Sidebar -->
-    <aside class="w-80 bg-white border-r border-slate-200 flex flex-col">
-      <div class="px-4 py-4 flex items-center gap-3">
-        <div class="w-10 h-10 bg-gradient-to-br from-purple-600 to-indigo-500 rounded-lg flex items-center justify-center text-white font-bold">Z</div>
-        <div>
-          <h1 class="text-lg font-semibold">Zayb AI</h1>
-          <p class="text-xs text-slate-500">Universal AI Chat (static)</p>
-        </div>
-      </div>
+<!-- ════════════════════════════════════════════
+     SIDEBAR — Chat History + Controls
+════════════════════════════════════════════ -->
+<aside id="sidebar" class="w-64 flex flex-col h-full flex-shrink-0">
 
-      <div class="px-4 pb-4">
-        <button id="newChatBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded">+ New Chat</button>
-      </div>
-
-      <div class="px-3 pb-2">
-        <div class="flex items-center justify-between text-xs text-slate-500 px-1">
-          <span>Chats</span>
-          <div class="flex gap-2">
-            <button id="settingsBtn" class="p-1 hover:bg-slate-100 rounded" title="Settings">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3" /></svg>
-            </button>
-            <button id="clearAllBtn" class="p-1 hover:bg-slate-100 rounded" title="Clear all chats">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5-4h4a1 1 0 011 1v1H9V4a1 1 0 011-1z" /></svg>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div id="chatList" class="flex-1 overflow-auto px-2 scrollbar-thin">
-        <!-- dynamic chat items -->
-      </div>
-
-      <div class="px-4 py-3 border-t border-slate-100 text-xs text-slate-500">
-        <div>Model: <span id="footerModelName" class="font-medium">—</span></div>
-        <div class="mt-1">Status: <span id="apiStatus" class="font-medium text-amber-600">Not configured</span></div>
-      </div>
-    </aside>
-
-    <!-- Main chat area -->
-    <main class="flex-1 flex flex-col">
-      <!-- Header -->
-      <header class="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-white to-slate-50">
-        <div>
-          <div class="text-sm text-slate-500">AI</div>
-          <div class="text-xl font-semibold flex items-center gap-3">
-            <span>Zayb AI</span>
-            <span id="activeChatTitle" class="text-slate-400 text-sm font-normal">(no chat)</span>
-          </div>
-        </div>
-
-        <div class="flex items-center gap-3">
-          <button id="renameChatBtn" class="px-3 py-1.5 bg-slate-100 rounded text-sm text-slate-700 hidden">Rename</button>
-          <button id="deleteChatBtn" class="px-3 py-1.5 bg-rose-50 text-rose-700 rounded text-sm hidden">Delete</button>
-          <button id="openSettingsHeaderBtn" class="px-3 py-1.5 bg-slate-100 rounded text-sm">Settings</button>
-        </div>
-      </header>
-
-      <!-- Messages -->
-      <section class="flex-1 overflow-auto p-6" id="messagesContainer" style="display:flex; flex-direction:column; gap:.75rem;">
-        <!-- message bubbles go here -->
-        <div id="emptyState" class="mx-auto mt-8 text-center text-slate-400">
-          <div class="text-2xl font-semibold">Start a conversation</div>
-          <div class="mt-2 text-sm">Click "New Chat" or select a previous chat from the left.</div>
-        </div>
-      </section>
-
-      <!-- Composer -->
-      <footer class="px-6 py-4 border-t border-slate-200 bg-white">
-        <div class="max-w-5xl mx-auto flex gap-3">
-          <div class="flex-1">
-            <div id="inputBox" class="min-h-[56px] max-h-36 overflow-auto bg-slate-50 p-3 rounded-lg border border-slate-100" contenteditable="true" role="textbox" aria-multiline="true" spellcheck="true" placeholder="Ask Zayb AI something..."></div>
-            <div class="mt-2 text-xs text-slate-400 flex items-center justify-between">
-              <div><span id="charCount">0</span> chars</div>
-              <div class="flex gap-2">
-                <button id="btnInsertSample" class="px-2 py-1 text-xs bg-slate-100 rounded">Insert sample</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="w-40 flex flex-col justify-between">
-            <button id="sendBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded">Send</button>
-            <button id="stopBtn" class="w-full mt-2 bg-amber-50 text-amber-700 py-2 rounded hidden">Stop</button>
-          </div>
-        </div>
-      </footer>
-    </main>
+  <!-- Brand Logo -->
+  <div class="flex items-center gap-3 px-5 pt-5 pb-4 flex-shrink-0">
+    <div class="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+         style="background: linear-gradient(135deg, #0ea5e9, #6366f1); box-shadow: 0 0 16px rgba(56,189,248,0.3);">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+        <path d="M2 17l10 5 10-5"/>
+        <path d="M2 12l10 5 10-5"/>
+      </svg>
+    </div>
+    <h1 class="text-lg font-bold tracking-tight logo-glow" style="font-family:'Sora',sans-serif; color:#e8f0ff;">
+      Zayb <span style="color:#38bdf8;">AI</span>
+    </h1>
   </div>
 
-  <!-- Settings Modal -->
-  <div id="settingsModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40 p-4">
-    <div class="w-full max-w-2xl bg-white rounded-lg shadow-lg overflow-hidden">
-      <div class="px-6 py-4 border-b">
-        <div class="flex items-center justify-between">
-          <h2 class="text-lg font-semibold">Settings</h2>
-          <button id="closeSettings" class="text-slate-500 hover:text-slate-800">Close</button>
-        </div>
+  <!-- New Chat Button -->
+  <div class="px-3 pb-3 flex-shrink-0">
+    <button id="new-chat-btn"
+      class="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200"
+      style="background: linear-gradient(135deg, rgba(14,165,233,0.13), rgba(99,102,241,0.09)); border: 1px solid rgba(56,189,248,0.18); color: #7dd3fc; font-family:'Sora',sans-serif;"
+      onmouseenter="this.style.borderColor='rgba(56,189,248,0.35)'; this.style.background='linear-gradient(135deg,rgba(14,165,233,0.2),rgba(99,102,241,0.14))';"
+      onmouseleave="this.style.borderColor='rgba(56,189,248,0.18)'; this.style.background='linear-gradient(135deg,rgba(14,165,233,0.13),rgba(99,102,241,0.09))';">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round">
+        <path d="M12 5v14M5 12h14"/>
+      </svg>
+      New Chat
+    </button>
+  </div>
+
+  <!-- Section Label -->
+  <div class="px-4 pb-1.5 flex-shrink-0">
+    <p class="uppercase tracking-widest" style="font-size: .6em; color: #1e2d40; font-family:'Sora',sans-serif; letter-spacing:.12em;">Recent</p>
+  </div>
+
+  <!-- Chat History List -->
+  <div id="chat-list" class="flex-1 overflow-y-auto px-2 space-y-0.5 pb-4" style="font-family:'DM Sans',sans-serif;"></div>
+
+  <!-- Bottom: Model info + Settings -->
+  <div class="px-3 pb-4 pt-3 flex-shrink-0" style="border-top: 1px solid rgba(99,179,237,0.06);">
+    <!-- Current model indicator -->
+    <div class="mb-2 px-3 py-2 rounded-lg" style="background:#0d1626; border:1px solid #1a2638;">
+      <p class="text-xs" style="color:#2e3f55; font-size:.67em; font-family:'Sora',sans-serif; text-transform:uppercase; letter-spacing:.08em;">Active Model</p>
+      <p id="current-model-label" class="text-xs truncate mt-0.5" style="color:#38bdf8; font-size:.75em; font-family:'DM Sans',sans-serif;">Not configured</p>
+    </div>
+    <!-- Settings button -->
+    <button id="settings-btn"
+      class="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-200"
+      style="color:#4a6070; font-family:'Sora',sans-serif;"
+      onmouseenter="this.style.background='#0d1626'; this.style.color='#8899b0';"
+      onmouseleave="this.style.background='transparent'; this.style.color='#4a6070';">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+      </svg>
+      Settings
+    </button>
+  </div>
+</aside>
+
+<!-- ════════════════════════════════════════════
+     MAIN CHAT AREA
+════════════════════════════════════════════ -->
+<main id="chat-area" class="flex-1 flex flex-col h-full min-w-0 relative">
+
+  <!-- Top Header Bar -->
+  <header class="flex items-center justify-between px-6 py-3.5 flex-shrink-0"
+          style="border-bottom: 1px solid rgba(255,255,255,0.04); background: rgba(7,9,15,0.55); backdrop-filter: blur(12px);">
+    <div>
+      <h2 id="chat-title" class="text-sm font-semibold" style="font-family:'Sora',sans-serif; color:#e2ecff;">New Conversation</h2>
+      <p class="text-xs mt-0.5" style="color:#2e3f55;">Powered by Zayb · Streaming</p>
+    </div>
+    <button id="clear-chat-btn" title="Clear conversation"
+      class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-all duration-200"
+      style="color:#3a4d63; font-family:'Sora',sans-serif;"
+      onmouseenter="this.style.background='rgba(239,68,68,0.08)'; this.style.color='#f87171';"
+      onmouseleave="this.style.background='transparent'; this.style.color='#3a4d63';">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/>
+        <path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+      </svg>
+      Clear
+    </button>
+  </header>
+
+  <!-- Messages Container -->
+  <div id="messages" class="flex-1 overflow-y-auto px-4 md:px-10 lg:px-20 py-6 space-y-4" style="scroll-behavior: smooth;"></div>
+
+  <!-- ── Welcome / Landing Screen ── -->
+  <div id="welcome" class="absolute flex flex-col items-center justify-center pointer-events-none"
+       style="inset: 53px 0 120px 0;">
+    <div class="pointer-events-auto text-center w-full max-w-xl px-6">
+
+      <!-- Icon -->
+      <div class="w-16 h-16 rounded-2xl mx-auto mb-5 flex items-center justify-center"
+           style="background: linear-gradient(135deg, #0ea5e9, #6366f1); box-shadow: 0 0 36px rgba(56,189,248,0.25), 0 0 70px rgba(99,102,241,0.1);">
+        <svg width="27" height="27" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+          <path d="M2 17l10 5 10-5"/>
+          <path d="M2 12l10 5 10-5"/>
+        </svg>
       </div>
-      <div class="px-6 py-4 space-y-4">
-        <div>
-          <label class="block text-xs text-slate-600 mb-1">API Base URL</label>
-          <input id="apiBaseInput" class="w-full border rounded px-3 py-2 text-sm" placeholder="https://api.openrouter.ai/v1" />
-          <p class="text-xs text-slate-400 mt-1">The base URL for your provider (e.g. OpenRouter). Keep trailing path out; the client will call <code>/chat/completions</code>.</p>
-        </div>
 
-        <div>
-          <label class="block text-xs text-slate-600 mb-1">API Key</label>
-          <input id="apiKeyInput" class="w-full border rounded px-3 py-2 text-sm" placeholder="sk-..." />
-          <div class="mt-2 flex gap-2">
-            <button id="saveSettingsBtn" class="px-3 py-1 bg-indigo-600 text-white rounded text-sm">Save</button>
-            <button id="clearApiKeyBtn" class="px-3 py-1 bg-rose-50 text-rose-700 rounded text-sm">Clear Key</button>
-            <button id="testConnectionBtn" class="px-3 py-1 bg-slate-100 rounded text-sm">Test</button>
-            <span id="testResult" class="text-sm text-slate-500"></span>
-          </div>
-        </div>
+      <h2 class="text-2xl font-bold mb-2" style="font-family:'Sora',sans-serif; color:#e2ecff;">
+        Hello, I'm <span class="logo-glow" style="color:#38bdf8;">Zayb AI</span>
+      </h2>
+      <p class="text-sm mb-8" style="color:#3a5068; line-height: 1.75; font-family:'DM Sans',sans-serif;">
+        Your universal AI assistant powered by Zayb. Ask me anything — coding, writing, research, creative work, and beyond.
+      </p>
 
-        <div>
-          <label class="block text-xs text-slate-600 mb-1">Model Name</label>
-          <input id="modelInput" class="w-full border rounded px-3 py-2 text-sm" placeholder="e.g., gpt-4o-mini or a custom model" />
-        </div>
-
-        <div class="text-xs text-slate-500">
-          This static client calls your configured endpoint directly from the browser, using the API key you provide. If your provider requires server-side proxying for security or CORS, you should host a tiny server to forward requests. Keep your key safe.
-        </div>
+      <!-- Suggestion Cards -->
+      <div id="suggestions" class="grid grid-cols-2 gap-2.5 text-left">
+        <div class="suggestion-card" data-prompt="Explain quantum computing in simple terms with a real-world analogy">💡 Explain quantum computing simply</div>
+        <div class="suggestion-card" data-prompt="Write a clean Python function to reverse a linked list with explanation">🐍 Reverse a linked list in Python</div>
+        <div class="suggestion-card" data-prompt="Give me 5 creative and catchy names for a tech startup focused on AI productivity">🚀 Creative names for a tech startup</div>
+        <div class="suggestion-card" data-prompt="Summarize the core principles of Stoic philosophy and how to apply them today">📚 Core principles of Stoicism</div>
       </div>
     </div>
   </div>
 
-  <!-- Simple confirm modal for deletion -->
-  <div id="confirmModal" class="fixed inset-0 z-40 hidden items-center justify-center bg-black/30 p-4">
-    <div class="bg-white rounded p-4 w-full max-w-md">
-      <div class="text-lg font-semibold">Confirm</div>
-      <div class="mt-2 text-sm text-slate-600" id="confirmText">Are you sure?</div>
-      <div class="mt-4 flex justify-end gap-2">
-        <button id="confirmCancel" class="px-3 py-1 rounded bg-slate-100">Cancel</button>
-        <button id="confirmOk" class="px-3 py-1 rounded bg-rose-600 text-white">Yes, delete</button>
-      </div>
+  <!-- ── Message Input Area ── -->
+  <div class="px-4 md:px-10 lg:px-20 pb-5 pt-2 flex-shrink-0">
+    <div id="input-box"
+         class="flex items-end gap-3 rounded-2xl px-4 py-3.5 transition-all duration-200"
+         style="background: #0d1626; border: 1px solid #1a2638;">
+      <textarea id="user-input" rows="1"
+        placeholder="Message Zayb AI…"
+        class="flex-1 bg-transparent text-sm leading-relaxed"
+        style="color:#dde3ee; min-height:26px; font-family:'DM Sans',sans-serif; border:none; outline:none; placeholder-color:#334;"
+      ></textarea>
+      <button id="send-btn" disabled
+        class="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 disabled:opacity-25 disabled:cursor-not-allowed"
+        style="background: linear-gradient(135deg, #0ea5e9, #6366f1);">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 2L11 13"/>
+          <path d="M22 2L15 22 11 13 2 9l20-7z"/>
+        </svg>
+      </button>
     </div>
+    <p class="text-center mt-2" style="font-size:.67em; color:#1a2638; font-family:'DM Sans',sans-serif;">
+      Zayb AI can make mistakes. Always verify important information.
+    </p>
   </div>
+</main>
 
-  <script>
-    // ---------- Storage keys ----------
-    const STORAGE = {
-      CHATS: 'zayb_ai_chats_v1',
-      SETTINGS: 'zayb_ai_settings_v1'
-    };
+<!-- ════════════════════════════════════════════
+     SETTINGS MODAL
+════════════════════════════════════════════ -->
+<div id="modal-overlay" class="hidden fixed inset-0 z-50 flex items-center justify-center px-4"
+     style="background: rgba(0,0,0,0.72);">
+  <div id="settings-modal"
+       class="w-full max-w-md rounded-2xl p-7 animate-scale-in"
+       style="background: #0c1320; border: 1px solid #1a2638; font-family:'Sora',sans-serif; box-shadow: 0 24px 60px rgba(0,0,0,0.6);">
 
-    // ---------- Default settings ----------
-    const DEFAULT_SETTINGS = {
-      apiBase: 'https://api.openrouter.ai/v1',
-      apiKey: '',
-      model: 'gpt-4o-mini'
-    };
+    <!-- Modal Header -->
+    <div class="flex items-start justify-between mb-7">
+      <div>
+        <h3 class="font-semibold text-white text-base">Settings</h3>
+        <p class="text-xs mt-0.5" style="color:#3a5068;">Connect your OpenRouter account</p>
+      </div>
+      <button id="close-modal"
+        class="p-1.5 rounded-lg mt-0.5 transition"
+        style="color:#3a5068;"
+        onmouseenter="this.style.background='rgba(255,255,255,0.05)'; this.style.color='#dde3ee';"
+        onmouseleave="this.style.background='transparent'; this.style.color='#3a5068';">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <path d="M18 6L6 18M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
 
-    // ---------- App state ----------
-    let settings = loadSettings();
-    let chats = loadChats();
-    let activeChatId = null;
-    let isWaitingForResponse = false;
-    let currentController = null;
+    <!-- API Key Field -->
+    <div class="mb-5">
+      <label class="block text-xs font-medium mb-2" style="color:#7dd3fc; letter-spacing:.04em;">
+        OpenRouter API Key
+      </label>
+      <div class="relative">
+        <input type="password" id="api-key-input" autocomplete="off"
+          placeholder="sk-or-v1-…"
+          class="settings-input w-full rounded-xl px-3.5 py-2.5 text-sm pr-10 transition-all"
+          style="background:#070d18; border:1px solid #1a2638; color:#dde3ee; font-family:'DM Sans',sans-serif;" />
+        <button id="toggle-key"
+          class="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+          style="color:#3a5068;"
+          onmouseenter="this.style.color='#7dd3fc';"
+          onmouseleave="this.style.color='#3a5068';">
+          <svg id="eye-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
+      </div>
+      <p class="text-xs mt-1.5" style="color:#253545; font-family:'DM Sans',sans-serif;">
+        Get your free API key at
+        <a href="https://openrouter.ai/keys" target="_blank" style="color:#38bdf8; text-decoration:underline;">openrouter.ai/keys</a>
+      </p>
+    </div>
 
-    // ---------- Elements ----------
-    const chatListEl = document.getElementById('chatList');
-    const newChatBtn = document.getElementById('newChatBtn');
-    const clearAllBtn = document.getElementById('clearAllBtn');
-    const settingsBtn = document.getElementById('settingsBtn');
-    const settingsModal = document.getElementById('settingsModal');
-    const closeSettingsBtn = document.getElementById('closeSettings');
-    const saveSettingsBtn = document.getElementById('saveSettingsBtn');
-    const apiKeyInput = document.getElementById('apiKeyInput');
-    const modelInput = document.getElementById('modelInput');
-    const apiBaseInput = document.getElementById('apiBaseInput');
-    const footerModelName = document.getElementById('footerModelName');
-    const apiStatus = document.getElementById('apiStatus');
-    const messagesContainer = document.getElementById('messagesContainer');
-    const emptyState = document.getElementById('emptyState');
-    const inputBox = document.getElementById('inputBox');
-    const sendBtn = document.getElementById('sendBtn');
-    const stopBtn = document.getElementById('stopBtn');
-    const charCount = document.getElementById('charCount');
-    const btnInsertSample = document.getElementById('btnInsertSample');
-    const activeChatTitle = document.getElementById('activeChatTitle');
-    const renameChatBtn = document.getElementById('renameChatBtn');
-    const deleteChatBtn = document.getElementById('deleteChatBtn');
-    const openSettingsHeaderBtn = document.getElementById('openSettingsHeaderBtn');
-    const clearApiKeyBtn = document.getElementById('clearApiKeyBtn');
-    const testConnectionBtn = document.getElementById('testConnectionBtn');
-    const testResult = document.getElementById('testResult');
-    const newChatHeaderBtn = document.getElementById('newChatBtn');
-    const settingsHeaderBtn = document.getElementById('settingsBtn');
-    const confirmModal = document.getElementById('confirmModal');
-    const confirmText = document.getElementById('confirmText');
-    const confirmOk = document.getElementById('confirmOk');
-    const confirmCancel = document.getElementById('confirmCancel');
-    const clearAllChatsBtn = document.getElementById('clearAllBtn');
-    const renameBtn = document.getElementById('renameChatBtn');
-    const deleteBtn = document.getElementById('deleteChatBtn');
-
-    // ---------- Initialization ----------
-    function init() {
-      applySettingsToUI();
-      renderChatList();
-      updateFooterStatus();
-      attachEventListeners();
-
-      // select last active chat if exists
-      if (chats.length) {
-        selectChat(chats[0].id);
-      }
-    }
-
-    function attachEventListeners() {
-      newChatBtn.addEventListener('click', () => newChat());
-      newChatHeaderBtn.addEventListener('click', () => newChat());
-      settingsBtn.addEventListener('click', () => openSettings());
-      openSettingsHeaderBtn.addEventListener('click', () => openSettings());
-      closeSettingsBtn.addEventListener('click', () => closeSettings());
-      saveSettingsBtn.addEventListener('click', () => saveSettingsFromUI());
-      clearApiKeyBtn.addEventListener('click', () => { apiKeyInput.value=''; settings.apiKey=''; saveSettings(); applySettingsToUI(); });
-      testConnectionBtn.addEventListener('click', () => testConnection());
-      clearAllChatsBtn.addEventListener('click', () => confirmAction('Clear all chats?', () => { chats=[]; saveChats(); renderChatList(); renderMessages(null); }));
-      sendBtn.addEventListener('click', () => onSend());
-      stopBtn.addEventListener('click', () => onStop());
-      btnInsertSample.addEventListener('click', () => {
-        inputBox.innerText = "Write a short, aggressive PvP taunt in 2 lines.";
-        updateCharCount();
-        inputBox.focus();
-      });
-      inputBox.addEventListener('input', updateCharCount);
-      inputBox.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          onSend();
-        }
-      });
-      confirmCancel.addEventListener('click', () => closeConfirm());
-      // rename + delete
-      renameBtn.addEventListener('click', () => renameActiveChat());
-      deleteBtn.addEventListener('click', () => confirmAction('Delete this chat?', () => {
-        if (!activeChatId) return;
-        chats = chats.filter(c => c.id !== activeChatId);
-        saveChats();
-        activeChatId = chats.length ? chats[0].id : null;
-        renderChatList();
-        renderMessages(activeChatId ? getChatById(activeChatId) : null);
-      }));
-    }
-
-    // ---------- Confirm Modal ----------
-    function confirmAction(text, okCb) {
-      confirmText.innerText = text;
-      confirmModal.classList.remove('hidden');
-      confirmOk.onclick = () => { okCb(); closeConfirm(); };
-    }
-    function closeConfirm() {
-      confirmModal.classList.add('hidden');
-      confirmOk.onclick = null;
-    }
-
-    // ---------- Settings ----------
-    function loadSettings() {
-      try {
-        const raw = localStorage.getItem(STORAGE.SETTINGS);
-        if (!raw) return {...DEFAULT_SETTINGS};
-        return {...DEFAULT_SETTINGS, ...JSON.parse(raw)};
-      } catch (e) {
-        console.warn('Failed to load settings', e);
-        return {...DEFAULT_SETTINGS};
-      }
-    }
-
-    function saveSettings() {
-      localStorage.setItem(STORAGE.SETTINGS, JSON.stringify(settings));
-      applySettingsToUI();
-      updateFooterStatus();
-    }
-
-    function applySettingsToUI() {
-      apiKeyInput.value = settings.apiKey || '';
-      modelInput.value = settings.model || DEFAULT_SETTINGS.model;
-      apiBaseInput.value = settings.apiBase || DEFAULT_SETTINGS.apiBase;
-      footerModelName.innerText = settings.model || '—';
-      apiStatus.innerText = settings.apiKey ? 'Configured' : 'Not configured';
-      apiStatus.className = settings.apiKey ? 'font-medium text-emerald-600' : 'font-medium text-amber-600';
-    }
-
-    function saveSettingsFromUI() {
-      settings.apiKey = apiKeyInput.value.trim();
-      settings.model = modelInput.value.trim() || DEFAULT_SETTINGS.model;
-      settings.apiBase = (apiBaseInput.value.trim() || DEFAULT_SETTINGS.apiBase).replace(/\/+$/, '');
-      saveSettings();
-      closeSettings();
-      renderChatList();
-    }
-
-    function openSettings() {
-      settingsModal.classList.remove('hidden');
-      apiKeyInput.focus();
-    }
-    function closeSettings() {
-      settingsModal.classList.add('hidden');
-    }
-
-    async function testConnection() {
-      testResult.innerText = 'Testing...';
-      try {
-        if (!settings.apiKey) {
-          testResult.innerText = 'No API key.';
-          return;
-        }
-        const url = settings.apiBase.replace(/\/+$/,'') + '/models';
-        // Attempt a GET to /models - if provider supports it and CORS allows, this gives feedback.
-        const resp = await fetch(url, {
-          method: 'GET',
-          headers: { 'Authorization': 'Bearer ' + settings.apiKey }
-        });
-        if (resp.ok) {
-          testResult.innerText = 'OK ✔';
-        } else {
-          testResult.innerText = 'Response: ' + resp.status + ' ' + resp.statusText;
-        }
-      } catch (e) {
-        testResult.innerText = 'Error (CORS or network)';
-        console.warn(e);
-      }
-      setTimeout(()=>{ testResult.innerText=''; }, 3500);
-    }
-
-    // ---------- Chats storage ----------
-    function loadChats() {
-      try {
-        const raw = localStorage.getItem(STORAGE.CHATS);
-        if (!raw) return [];
-        return JSON.parse(raw);
-      } catch (e) {
-        console.warn('Failed to load chats', e);
-        return [];
-      }
-    }
-
-    function saveChats() {
-      localStorage.setItem(STORAGE.CHATS, JSON.stringify(chats));
-      renderChatList();
-    }
-
-    // ---------- Chat utilities ----------
-    function generateId(prefix='c') {
-      return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
-    }
-
-    function newChat() {
-      const chat = {
-        id: generateId(),
-        title: 'New chat',
-        model: settings.model || DEFAULT_SETTINGS.model,
-        messages: [],
-        createdAt: Date.now(),
-        updatedAt: Date.now()
-      };
-      chats.unshift(chat);
-      saveChats();
-      selectChat(chat.id);
-    }
-
-    function getChatById(id) {
-      return chats.find(c => c.id === id) || null;
-    }
-
-    function selectChat(id) {
-      activeChatId = id;
-      // move selected chat to top for convenience
-      const idx = chats.findIndex(c => c.id === id);
-      if (idx > 0) {
-        const [c] = chats.splice(idx,1);
-        chats.unshift(c);
-        saveChats();
-      }
-      renderChatList();
-      renderMessages(getChatById(id));
-    }
-
-    function renameActiveChat() {
-      if (!activeChatId) return;
-      const chat = getChatById(activeChatId);
-      const newTitle = prompt('Rename chat', chat.title || 'Chat');
-      if (newTitle !== null) {
-        chat.title = newTitle.trim() || chat.title;
-        chat.updatedAt = Date.now();
-        saveChats();
-        renderChatList();
-        renderMessages(chat);
-      }
-    }
-
-    function renderChatList() {
-      chatListEl.innerHTML = '';
-      if (!chats.length) {
-        chatListEl.innerHTML = '<div class="px-3 py-4 text-sm text-slate-400">No chats yet. Start one!</div>';
-        return;
-      }
-      chats.forEach(chat => {
-        const lastMsg = chat.messages.length ? chat.messages[chat.messages.length-1] : null;
-        const snippet = lastMsg ? (lastMsg.role === 'user' ? 'You: ' : 'Zayb: ') + (lastMsg.content || '').slice(0, 80) : 'Empty';
-        const el = document.createElement('button');
-        el.className = `w-full text-left rounded p-3 mb-2 hover:bg-slate-50 flex items-start gap-3 ${activeChatId === chat.id ? 'bg-slate-50 border border-slate-100 shadow-sm' : ''}`;
-        el.innerHTML = `
-          <div class="w-9 h-9 rounded bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-semibold">${chat.title.charAt(0) || 'C'}</div>
-          <div class="flex-1">
-            <div class="font-medium text-sm">${escapeHtml(chat.title)}</div>
-            <div class="text-xs text-slate-400 mt-0.5">${escapeHtml(snippet)}</div>
-          </div>
-          <div class="text-xs text-slate-400">${new Date(chat.updatedAt).toLocaleString()}</div>
-        `;
-        el.addEventListener('click', () => selectChat(chat.id));
-        chatListEl.appendChild(el);
-      });
-    }
-
-    // ---------- Messages ----------
-    function renderMessages(chat) {
-      messagesContainer.innerHTML = '';
-      if (!chat) {
-        emptyState.classList.remove('hidden');
-        activeChatTitle.innerText = '(no chat)';
-        renameChatBtn.classList.add('hidden');
-        deleteChatBtn.classList.add('hidden');
-        return;
-      }
-      emptyState.classList.add('hidden');
-      activeChatTitle.innerText = chat.title || '(untitled)';
-      renameChatBtn.classList.remove('hidden');
-    
+    <!-- Model Name Field -->
+    <div class="mb-6">
+      <label class="block text-xs font-medium mb-2" style="color:#7dd3fc; letter-spacing:.04em;">
+        Model Name
+      </label>
+      <input type="text" id="model-input"
+        placeholder="e.g. google/gemini-2.0-flash-exp:free"
+        class="settings-input w-full rounded-xl px-3.5 py-2.5 text-sm transition-all"
+        style="background:#070d18; border:1px solid #1a2638; color:#dde3ee; font-family:'DM Sans',monospace;" />
+      <p class="text-xs mt-1.5" s
